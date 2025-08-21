@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="no">
+<head>
+    <meta charset="UTF-8">
+    <title>ToDo Liste</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; max-width: 500px; }
+        h1 { margin-bottom: 10px; }
+        ul { padding: 0; }
+        li { list-style: none; margin-bottom: 8px; display: flex; align-items: center; }
+        li span { flex-grow: 1; margin-left: 8px; }
+        button { margin-left: 8px; }
+    </style>
+</head>
+<body>
+
+<h1>ToDo Liste</h1>
+
+<input type="text" id="newTask" placeholder="Ny oppgave">
+<button onclick="addTask()">Legg til</button>
+
+<ul id="taskList"></ul>
+
+<script>
+const API_URL = '/tasks';
+
+// Hent oppgaver fra backend
+async function fetchTasks() {
+    const res = await fetch(API_URL);
+    const tasks = await res.json();
+    const list = document.getElementById('taskList');
+    list.innerHTML = ''; // Fjern gammel liste
+
+    tasks.forEach(task => {
+        const li = document.createElement('li');
+
+        // Avkrysningsboks
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.checked = task.done;
+        checkbox.onchange = () => updateTask(task.id, checkbox.checked);
+
+        // Tekst
+        const span = document.createElement('span');
+        span.textContent = task.description;
+        if (task.done) {
+            span.style.textDecoration = 'line-through';
+            span.style.color = 'gray';
+        }
+
+        // Slett-knapp
+        const delBtn = document.createElement('button');
+        delBtn.textContent = 'Slett';
+        delBtn.onclick = () => deleteTask(task.id);
+
+        li.appendChild(checkbox);
+        li.appendChild(span);
+        li.appendChild(delBtn);
+        list.appendChild(li);
+    });
+}
+
+// Legg til ny oppgave
+async function addTask() {
+    const input = document.getElementById('newTask');
+    const description = input.value.trim();
+    if (!description) return; // gjør ingenting hvis tomt
+
+    const response = await fetch("/tasks", {  // merk: bruk /tasks, ikke /api/tasks hvis backend ditt er /tasks
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ description: description, done: false })
+    });
+    const task = await response.json();
+
+    input.value = '';  // tøm inputfeltet
+    fetchTasks();       // oppdater lista
+}
+
+// Oppdater oppgave (kryss av/på)
+async function updateTask(id, done) {
+    const tasks = await fetch(API_URL).then(r => r.json());
+    const task = tasks.find(t => t.id === id);
+
+    await fetch(`${API_URL}/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ description: task.description, done: done })
+    });
+    fetchTasks();
+}
+
+
+// Slett oppgave
+async function deleteTask(id) {
+    await fetch(`${API_URL}/${id}`, { method: 'DELETE' });
+    fetchTasks();
+}
+
+// Last listen når siden åpnes
+fetchTasks();
+</script>
+
+</body>
+</html>
